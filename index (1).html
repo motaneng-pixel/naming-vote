@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <title>機器人命名大募集！</title>
+    <style>
+        body {
+            font-family: 'Microsoft JhengHei', 微軟正黑體, Arial, sans-serif; 
+            margin: 0;
+            font-weight: bold;
+            min-height: 100vh;
+            width: 100vw;
+            background: #f9faf9;
+            position: relative;
+            box-sizing: border-box;
+            /* 背景圖片與淡化 */
+            background-image: url('ChatGPT Image 2025年7月22日 上午11_32_16.png');
+            background-size: cover;
+            background-position: center center;
+            background-attachment: fixed;
+        }
+        body::before {
+            content: "";
+            position: fixed;
+            left: 0; top: 0; width: 100vw; height: 100vh;
+            background: rgba(255,255,255,0.78); /* 調整淡化程度 */
+            pointer-events: none;
+            z-index: 0;
+        }
+        body > * { position: relative; z-index: 1; }
+        .main-container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 30px 12px 40px 12px;
+        }
+        .banner-title { font-size: 2.3em; font-weight: bold; margin-bottom: 18px; color: #19618a; }
+        .intro { font-size: 1.1em; line-height: 1.8; color: #233a45; margin-bottom:30px;}
+        .divider { border: none; height: 2.5px; background: linear-gradient(90deg, #86b3ff 0%, #f2b5f3 100%); margin: 38px 0 22px 0; border-radius: 2px; opacity: 0.7; }
+        #posts { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; }
+        .post { border: 1px solid #ccc; padding: 8px; background: #f9f9f9; width: 19ch; min-width: 19ch; max-width: 19ch; display: flex; flex-direction: column; align-items: flex-start; }
+        .post-order { text-align: center; font-weight: bold; color: #007bff; margin-bottom: 5px; font-size: 1.15em; width: 100%; }
+        .proposal-title { font-size: 1.45em; font-weight: bold; margin-bottom: 6px; width: 100%; word-break: break-all;}
+        .post-desc { margin-bottom: 6px; width: 100%; font-size: 1em; }
+        .post-empid, .post-name { color: #555; font-size: 0.95em; margin-bottom: 1px; width: 100%; }
+        .votes { font-weight: bold; margin-left: 5px; }
+        .fancy-btn { display: inline-block; padding: 10px 38px; font-size: 1.1em; font-weight: bold; color: #fff; background: linear-gradient(90deg, #5bb3fd 0%, #b093fc 100%); border: none; border-radius: 25px; cursor: pointer; transition: all 0.19s; letter-spacing: 1.5px;}
+        .fancy-btn:hover { background: linear-gradient(90deg, #b093fc 0%, #5bb3fd 100%); color: #f7f7fa;}
+        .delete-btn { margin-left:8px; color:#fff; background:#e57373; border:none; padding:6px 18px; border-radius:8px; cursor:pointer; font-weight: bold; font-size: 1em;}
+        .delete-btn:hover { background: #d32f2f;}
+        button { font-family: inherit; }
+        .field { margin-bottom: 6px; display: block; font-weight: bold; }
+    </style>
+</head>
+<body>
+<div class="main-container">
+    <div class="banner-title" style="text-align:center;">機器人命名大募集！</div>
+<div class="intro" style="text-align:center;">
+    我們正在尋找一個屬於護理問答 AI 的超強名字！<br>
+    現在就來投稿，只要 5字以內，你的一句話可能成為全院 AI 的新招牌 🤖✨<br><br>
+    <b>📨 投稿送好康：</b><br>
+    💌 前100名投稿者： 50元禮券<br>
+    🏆 票選第一名： 500元禮券<br><br>
+    ⏳ 投稿截止：XXXX年XX月XX日<br>
+    🗳️ 票選開放：2025年8月19日（一）早上9:00 起
+</div>
+
+    <hr class="divider">
+    <section id="postForm">
+        <h2>展現創意命名</h2>
+        <label class="field">提案名稱 (5字以內)：<input type="text" id="proposal" size="30" oninput="limitProposalInput(this)"></label>
+        <label class="field">命名介紹：<input type="text" id="desc" size="40"></label>
+        <label class="field">員編：<input type="text" id="empid" size="10"></label>
+        <label class="field">姓名：<input type="text" id="name" size="10"></label>
+        <button class="fancy-btn" onclick="addPost()">投稿</button>
+    </section>
+    <hr class="divider">
+    <section id="voteSection">
+        <h2>所有投稿</h2>
+        <div id="posts"></div>
+        <div id="admin-login" style="margin-bottom:18px;">
+            <input type="password" id="adminPwd" placeholder="管理密碼">
+            <button class="fancy-btn" onclick="adminLogin()">管理登入</button>
+        </div>
+        <button id="exportBtn" onclick="exportCSV()" style="display:none;">匯出 CSV</button>
+    </section>
+</div>
+<script>
+const SHEET_API = "https://script.google.com/macros/s/AKfycbylB8V3wEzsmoF59gkGXrcpKZ8GFAgaDJri9LRK__52BeAioDvMsNzi37HWKC3l0TpV/exec";
+let isAdmin = false;
+let posts = [];
+const voteStartTime = new Date(Date.now() - 1000);
+
+function limitProposalInput(input) {
+    let val = input.value;
+    let zhCount = (val.match(/[\u4e00-\u9fff]/g) || []).length;
+    let enCount = (val.match(/[A-Za-z]/g) || []).length;
+    let otherCount = val.length - zhCount - enCount;
+    if (zhCount > 0) {
+        let result = '';
+        let count = 0;
+        for (let ch of val) {
+            if (/[\u4e00-\u9fff]/.test(ch)) count++;
+            else count += 0.5;
+            if (count <= 5) result += ch;
+            else break;
+        }
+        input.value = result;
+    } else {
+        input.value = val.slice(0, 15);
+    }
+}
+
+// 讀取 Google Sheet 投稿及票數
+function fetchPosts() {
+    fetch(SHEET_API)
+    .then(res => res.json())
+    .then(rows => {
+        // 跳過第一行標題
+        posts = rows.slice(1).map((r, i) => ({
+            sheetRow: i + 2, // 在 Google Sheet 的行數(含標題)（投票要用）
+            order: r[0] || (i + 1), // 取A欄流水編號，沒有則用順序
+            proposal: r[1],
+            desc: r[2],
+            empid: r[3],
+            name: r[4],
+            votes: parseInt(r[5]) || 0
+        }));
+        renderPosts();
+    });
+}
+
+function renderPosts() {
+    const postsDiv = document.getElementById('posts');
+    postsDiv.innerHTML = '';
+    const now = new Date();
+    posts.forEach((post, idx) => {
+        const postDiv = document.createElement('div');
+        postDiv.className = 'post';
+        const canVote = now >= voteStartTime;
+        postDiv.innerHTML = `
+            <div class="post-order">#${post.order}</div>
+            <div class="proposal-title">${post.proposal}</div>
+            <div class="post-desc">${post.desc}</div>
+            <div class="post-empid">員編：${post.empid}</div>
+            <div class="post-name">姓名：${post.name}</div>
+            <div style="margin-top:8px;">
+                <span class="votes">票數: ${post.votes || 0}</span>
+                <button onclick="vote(${idx})" ${canVote ? '' : 'disabled style="opacity:0.5;cursor:not-allowed;"'}>
+                    ${canVote ? '投票' : '尚未開放'}
+                </button>
+                ${isAdmin ? `<button onclick="deletePost(${idx})" class="delete-btn">刪除</button>` : ''}
+            </div>`;
+        postsDiv.appendChild(postDiv);
+    });
+    const totalVotes = posts.reduce((sum, post) => sum + (post.votes || 0), 0);
+    const totalDiv = document.createElement('div');
+    totalDiv.style.gridColumn = '1 / -1';
+    totalDiv.style.marginTop = '20px';
+    totalDiv.innerHTML = `<b>總投票數：</b>${totalVotes}`;
+    postsDiv.appendChild(totalDiv);
+}
+
+function addPost() {
+    const proposal = document.getElementById('proposal').value.trim();
+    const desc = document.getElementById('desc').value.trim();
+    const empid = document.getElementById('empid').value.trim();
+    const name = document.getElementById('name').value.trim();
+    let zhCount = (proposal.match(/[\u4e00-\u9fff]/g) || []).length;
+    let enCount = (proposal.match(/[A-Za-z]/g) || []).length;
+    let otherCount = proposal.length - zhCount - enCount;
+    let isValid = false;
+    if (zhCount > 0) isValid = (zhCount + Math.ceil(otherCount/2) <= 5);
+    else isValid = proposal.length <= 15;
+
+    if (!isValid) {
+        alert('提案名稱必須為中文5字以內或英文15字以內！');
+        return;
+    }
+    if (proposal && desc && empid && name) {
+        fetch(SHEET_API, {
+            method: "POST",
+            body: JSON.stringify({ proposal, desc, empid, name }),
+            headers: { "Content-Type": "application/json" }
+        }).then(r=>r.text()).then(res=>{
+            if(res === "success"){
+                alert("投稿成功！");
+                document.getElementById('proposal').value = '';
+                document.getElementById('desc').value = '';
+                document.getElementById('empid').value = '';
+                document.getElementById('name').value = '';
+                fetchPosts();
+            } else {
+                alert("投稿失敗，請重試！");
+            }
+        }).catch(()=>{
+            alert("連線失敗，請稍後再試！");
+        });
+    } else {
+        alert('請完整填寫所有欄位');
+    }
+}
+
+// 只能投一票
+function vote(idx) {
+    const now = new Date();
+    if (now < voteStartTime) {
+        alert('投票尚未開放，將於 2025/8/19 早上 9:00 開始');
+        return;
+    }
+    if (localStorage.getItem('hasVoted')) {
+        alert('你已經投過票，不能重複投票！');
+        return;
+    }
+    const sheetRow = posts[idx].sheetRow; // 投票用sheet實際行
+    fetch(SHEET_API, {
+        method: "PUT",
+        body: JSON.stringify({ rowIndex: sheetRow }),
+        headers: { "Content-Type": "application/json" }
+    }).then(r=>r.text()).then(res=>{
+        if(res === "success"){
+            alert("投票成功！");
+            localStorage.setItem('hasVoted', 'yes');
+            fetchPosts();
+        } else {
+            alert("投票失敗，請重試！");
+        }
+    }).catch(()=>{
+        alert("連線失敗，請稍後再試！");
+    });
+}
+
+function deletePost(idx) {
+    alert('如要雲端刪除需進階 Apps Script 支援，預設僅移除畫面');
+    posts.splice(idx, 1);
+    posts.forEach((p, i) => p.order = i + 1);
+    renderPosts();
+}
+
+function exportCSV() {
+    let csv = "投稿順序,提案名稱,命名介紹,員編,姓名,票數\n";
+    posts.forEach(p => {
+        csv += `${p.order},"${p.proposal}","${p.desc}","${p.empid}","${p.name}",${p.votes || 0}\n`;
+    });
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = '投稿資料.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+function adminLogin() {
+    const pwd = document.getElementById('adminPwd').value;
+    if (pwd === "12345") {
+        isAdmin = true;
+        document.getElementById('exportBtn').style.display = "";
+        document.getElementById('admin-login').style.display = "none";
+        alert("管理模式登入成功！");
+        renderPosts();
+    } else {
+        alert("密碼錯誤！");
+    }
+}
+
+// 頁面一載入就自動讀資料
+fetchPosts();
+</script>
+</body>
+</html>
